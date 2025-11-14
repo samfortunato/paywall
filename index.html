@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Paywall</title>
+
+		<link rel="stylesheet" href="./index.css">
+	</head>
+
+	<body>
+		<form action="">
+			<input disabled id="buy" type="button" value="Buy Now" />
+		</form>
+
+		<script type="module">
+			const sessionId = localStorage.getItem('stripe_session_id');
+
+			if (sessionId) {
+				const res = await fetch(`http://localhost:3000/verify?session_id=${sessionId}`);
+				const data = await res.json();
+
+				if (data.paid) {
+					window.location.href = '/success.html';
+				}
+			} else {
+				const buyButton = document.querySelector('#buy');
+
+				buyButton?.addEventListener('click', async (evt) => {
+					const res = await fetch('http://localhost:3000/create-checkout', {
+						method: 'POST',
+					});
+
+					const { url } = await res.json();
+
+					window.location.href = url;
+				});
+
+				buyButton.disabled = false;
+			}
+		</script>
+	</body>
+</html>

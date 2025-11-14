@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Payment Success</title>
+	</head>
+
+	<body>
+		<h1>You paid!</h1>
+		<p>Congratulations. Now I have all of your money.</p>
+	</body>
+
+	<script>
+		const params = new URLSearchParams(window.location.search);
+		const sessionId = params.get('session_id');
+
+		if (sessionId) {
+			localStorage.setItem('stripe_session_id', sessionId);
+
+			fetch(`http://localhost:3000/verify?session_id=${sessionId}`)
+				.then(res => res.json())
+				.then((data) => {
+					if (data.paid) {
+						console.log('user paid');
+					}
+				});
+		}
+	</script>
+</html>
