@@ -12,6 +12,8 @@
   "type": "module",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "stripe": "^19.3.1"
