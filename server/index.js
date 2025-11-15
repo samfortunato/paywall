@@ -18,7 +18,7 @@ db.exec(`
 	);
 `);
 
-const cashWrap = new Stripe('sryhadtodelete');
+const cashWrap = new Stripe(process.env.CASH_WRAP_SECRET_KEY);
 
 const app = express();
 
