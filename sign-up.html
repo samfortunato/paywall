@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Sign Up</title>
+	</head>
+
+	<body>
+		<form action="">
+			<input type="email" name="email" id="email" />
+			<input type="password" name="password" id="password" />
+
+			<input type="submit" value="submit" />
+		</form>
+
+		<script>
+			if (localStorage.getItem('token')) {
+				window.location.href = './';
+			}
+
+			document.querySelector('form').addEventListener('submit', (evt) => {
+				evt.preventDefault();
+
+				const formData = new FormData(evt.target);
+
+				fetch('http://localhost:3000/sign-up', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						email: formData.get('email'),
+						password: formData.get('password'),
+					}),
+				});
+			});
+		</script>
+	</body>
+</html>
