@@ -10,17 +10,21 @@
 
 	<body>
 		<form action="">
-			<input disabled id="buy" type="button" value="Buy Now" />
+			<input disabled id="buy" type="button" value="buy" />
 		</form>
 
 		<script type="module">
-			const sessionId = localStorage.getItem('stripe_session_id');
+			if (!localStorage.getItem('token')) {
+				window.location.href = './sign-in.html';
+			}
 
-			if (sessionId) {
-				const res = await fetch(`http://localhost:3000/verify?session_id=${sessionId}`);
+			const paymentSessionId = localStorage.getItem('payment_session_id');
+
+			if (paymentSessionId) {
+				const res = await fetch(`http://localhost:3000/verify?payment_session_id=${paymentSessionId}`);
 				const data = await res.json();
 
-				if (data.paid) {
+				if (data.hasPaid) {
 					window.location.href = '/success.html';
 				}
 			} else {
@@ -29,6 +33,7 @@
 				buyButton?.addEventListener('click', async (evt) => {
 					const res = await fetch('http://localhost:3000/create-checkout', {
 						method: 'POST',
+						headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
 					});
 
 					const { url } = await res.json();
