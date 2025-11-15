@@ -19,12 +19,12 @@
 				window.location.href = './';
 			}
 
-			document.querySelector('form').addEventListener('submit', (evt) => {
+			document.querySelector('form').addEventListener('submit', async (evt) => {
 				evt.preventDefault();
 
 				const formData = new FormData(evt.target);
 
-				fetch('http://localhost:3000/sign-up', {
+				const res = await fetch('http://localhost:3000/sign-up', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
@@ -32,6 +32,28 @@
 						password: formData.get('password'),
 					}),
 				});
+
+				const { wasSuccessful } = await res.json();
+
+				if (wasSuccessful) {
+					const res = await fetch('http://localhost:3000/sign-in', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							email: formData.get('email'),
+							password: formData.get('password'),
+						}),
+					});
+
+					const userData = await res.json();
+
+					if (userData.token) { // is logged in
+						localStorage.setItem('token', userData.token);
+						localStorage.setItem('has_paid', userData.hasPaid);
+
+						window.location.href = './index.html';
+					}
+				}
 			});
 		</script>
 	</body>
