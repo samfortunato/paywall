@@ -1,68 +1,120 @@
-import http from 'http';
-import Stripe from 'stripe';
+import dotenv from 'dotenv';
+import Database from 'better-sqlite3';
+import express from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { Stripe } from 'stripe';
 
-const users = new Map();
+dotenv.config();
+
+const db = new Database('./server/data/users.db');
+
+db.exec(`
+	create table if not exists users (
+		id integer primary key autoincrement,
+		email text unique not null,
+		password_hash text not null,
+		has_paid integer default 0
+	);
+`);
+
 const cashWrap = new Stripe('sryhadtodelete');
 
-const server = http.createServer(async (req, res) => {
+const app = express();
+
+app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Headers', '*');
 
-	let requestBody = '';
-	for await (const chunk of req) { requestBody += chunk; }
-	const body = JSON.parse(requestBody || '{}');
+	next();
+});
 
-	if (req.url === '/sign-up') {
-		const { email, password } = body;
+function authenticate(req, res, next) {
+	const token = req.headers.authorization?.split(' ')[1];
 
-		if (users.has(email)) {
-			res.writeHead(200, { 'Content-Type': 'application/json' });
-			res.end(JSON.stringify({ wasSuccessful: false, reason: 'email already exists' }));
-		} else {
-			users.set(email, { password, isPaid: false });
-
-			res.writeHead(200, { 'Content-Type': 'application/json' });
-			res.end(JSON.stringify({ wasSuccessful: true }));
-		}
+	if (!token) {
+		return res
+			.status(401)
+			.json({ error: 'no token' });
 	}
 
-	if (req.url === '/sign-in') {
-		const { email, password } = body;
+	try {
+		const decoded = jwt.verify(token, process.env.SECRET);
 
-		const user = users.get(email);
+		req.email = decoded.email;
 
-		if (user && user.password === password) {
+		next();
+	} catch (err) {
+		console.error(err);
 
-		}
+		res
+			.status(401)
+			.json({ error: 'invalid token' });
 	}
+}
 
-	if (req.method === 'POST' && req.url === '/create-checkout') {
-		const session = await cashWrap.checkout.sessions.create({
-			line_items: [
-				{
-					price: 'price_1STCk2Cu0EmtIitpnqr9q9Qj',
-					quantity: 1,
-				},
-			],
-			mode: 'subscription',
-			success_url: 'http://localhost:8080/success.html?session_id={CHECKOUT_SESSION_ID}',
-			cancel_url: 'http://localhost:8080',
-		});
+app.use(express.json());
 
-		res.writeHead(200, { 'Content-Type': 'application/json' });
-		res.end(JSON.stringify({ url: session.url }));
-	}
+app.get('/', (req, res) => {
+	res.send('connected');
+});
 
-	if (req.url?.startsWith('/verify')) {
-		const url = new URL(req.url, `http://${req.headers.host}`);
-		const sessionId = url.searchParams.get('session_id');
+app.post('/sign-up', async (req, res) => {
+	const { email, password } = req.body;
 
-		const session = await cashWrap.checkout.sessions.retrieve(sessionId);
+	const hashed = await bcrypt.hash(password, 10);
 
-		users.
+	db.prepare(`
+		insert into users (email, password_hash)
+		values (?, ?)
+	`).run(
+		email,
+		hashed,
+	);
 
-		res.writeHead(200, { 'Content-Type': 'application/json' });
-		res.end(JSON.stringify({ paid: session.payment_status === 'paid' }));
+	res.json({ wasSuccessful: true });
+});
+
+app.post('/sign-in', async (req, res) => {
+	const { email, password } = req.body;
+
+	const user = db.prepare(`
+		select *
+		from users
+		where email = ?
+	`).get(
+		email,
+	);
+
+	if (user && await bcrypt.compare(password, user.password_hash)) {
+		const token = jwt.sign({ email }, process.env.SECRET);
+
+		res.json({ token, hasPaid: !!user.has_paid });
 	}
 });
 
-server.listen(3000);
+app.post('/create-checkout', authenticate, async (req, res) => {
+	const session = await cashWrap.checkout.sessions.create({
+		line_items: [
+			{
+				price: 'price_1STCk2Cu0EmtIitpnqr9q9Qj',
+				quantity: 1,
+			},
+		],
+		mode: 'subscription',
+		success_url: 'http://localhost:8080/success.html?payment_session_id={CHECKOUT_SESSION_ID}',
+		cancel_url: 'http://localhost:8080',
+	});
+
+	res.json({ url: session.url });
+});
+
+app.get('/verify', async (req, res) => {
+	const session = await cashWrap.checkout.sessions.retrieve(req.query['payment_session_id']);
+
+	res.json({ hasPaid: session.payment_status === 'paid' });
+});
+
+app.listen(3000, () => {
+	console.log('running');
+});
