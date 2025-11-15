@@ -18,6 +18,15 @@
 				window.location.href = './sign-in.html';
 			}
 
+			const logoutButton = document.createElement('button');
+			logoutButton.textContent = 'sign out';
+			logoutButton.addEventListener('click', () => {
+				localStorage.clear();
+
+				window.location.reload();
+			});
+			document.body.append(logoutButton);
+
 			const paymentSessionId = localStorage.getItem('payment_session_id');
 
 			if (paymentSessionId) {
